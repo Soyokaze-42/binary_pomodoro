@@ -26,25 +26,26 @@
 
 // Start button still needs to be implemented
 
-#define NEXT_BTN_PIN 2
-#define START_BTN_PIN 3
+#define NEXT_BTN_PIN 3
+#define NEXT_BTN_PIN_INTERUPT 1 //This isn't the same pin number. 0 for pin 2, 1 for pin 3 (those are the normal Arduino interupt pins)
+#define START_BTN_PIN 2
 
-#define BIN_PIN0 9
-#define BIN_PIN1 8
-#define BIN_PIN2 7
-#define BIN_PIN3 6
-#define BIN_PIN4 5
-#define BIN_PIN5 4
-#define BIN_PIN6 10
-#define BIN_PIN7 11
-#define BIN_PIN8 12
-#define BIN_PIN9 13
-#define BIN_PIN10 A0
+#define BIN_PIN0 4
+#define BIN_PIN1 5
+#define BIN_PIN2 6
+#define BIN_PIN3 7
+#define BIN_PIN4 8
+#define BIN_PIN5 9
+#define BIN_PIN6 A3
+#define BIN_PIN7 A2
+#define BIN_PIN8 A1
+#define BIN_PIN9 A0
+#define BIN_PIN10 13
 
-#define ROUND_PIN0 A2
-#define ROUND_PIN1 A3
+#define ROUND_PIN0 11
+#define ROUND_PIN1 10
 
-#define BREAK_PIN A1
+#define BREAK_PIN 12
 
 // set initial variables
 int start; //var to track the time of start
@@ -73,9 +74,7 @@ void setup() {
   pinMode(ROUND_PIN1, OUTPUT);
   pinMode(BREAK_PIN, OUTPUT);
 
-  attachInterrupt(0, next, LOW);
-
-  //Serial.begin(9600);      // open the serial port at 9600 bps:   
+  attachInterrupt(NEXT_BTN_PIN_INTERUPT, next_interupt, LOW);
 }
 
 void loop() {
@@ -85,12 +84,7 @@ void loop() {
     
     do {
       i = count_down - ((millis() - start) / 1000); //i is an int, so this should round fine
-      
-      //Serial.print(i);       // prints a label
-      //Serial.print("\t");              // prints a tab
-      //Serial.print(start - millis());
-      //Serial.print("\n");              // prints a tab
-      
+
       //write out all the counter bits
       digitalWrite(BIN_PIN0, i %2);
       digitalWrite(BIN_PIN1, i/2 %2);
@@ -103,7 +97,6 @@ void loop() {
       digitalWrite(BIN_PIN8, i/256 %2);
       digitalWrite(BIN_PIN9, i/512 %2);
       digitalWrite(BIN_PIN10, i/1024 %2);
-      delay(1000);
     } while (i >= 0);
     
     next();
@@ -111,27 +104,50 @@ void loop() {
 }
 
 void next () {
-  if ( i >= 0 ){
-    i = -1;
+  rnd++;
+
+  if ( rnd%2 ){
+    count_down = 300;
   } else {
-    
-    rnd++;
-    
-    if ( rnd%2 ){
-      count_down = 300;
-    } else {
-      count_down = 1500;
-    }
-    
-    if ( rnd == 7 ){
-      count_down = 1200;
-    } else if ( rnd == 8 ){
-      rnd = 0;
-    }
-   
-    digitalWrite(BREAK_PIN, rnd %2);
-    digitalWrite(ROUND_PIN0, rnd/2 %2);
-    digitalWrite(ROUND_PIN1, rnd/3 %2);
+    count_down = 1500;
   }
+    
+  if ( rnd == 7 ){
+    count_down = 1200;
+  } else if ( rnd == 8 ){   
+    rnd = 0;
+  }
+   
+  digitalWrite(BREAK_PIN, rnd %2);
+  digitalWrite(ROUND_PIN0, rnd/2 %2);
+  digitalWrite(ROUND_PIN1, rnd/4 %2);
+      
+  digitalWrite(BIN_PIN0, 0);
+  digitalWrite(BIN_PIN1, 0);
+  digitalWrite(BIN_PIN2, 0);
+  digitalWrite(BIN_PIN3, 0);
+  digitalWrite(BIN_PIN4, 0);
+  digitalWrite(BIN_PIN5, 0);
+  digitalWrite(BIN_PIN6, 0);
+  digitalWrite(BIN_PIN7, 0);
+  digitalWrite(BIN_PIN8, 0);
+  digitalWrite(BIN_PIN9, 0);
+  digitalWrite(BIN_PIN10, 0);
+
+}
+
+void next_interupt () {
+  //these are to debounce the button press
+  static unsigned long last = 0;
+  unsigned long now = millis();
+  
+  if ( now - last > 200 ) {
+    if ( i >= 0 ){
+      i = -1;
+    } else {
+      next();
+    }
+  }
+    last = now;
 
 }
