@@ -24,7 +24,10 @@
 
 // I'm glad that the Arduino analog pins can be used for GPIO, too
 
-// Start button still needs to be implemented
+// This pin stays high until we want to shut the program off (it drives a mofset for power)
+#include <EEPROM.h>
+
+#define ON_PIN A5
 
 #define NEXT_BTN_PIN 3
 #define NEXT_BTN_PIN_INTERUPT 1 //This isn't the same pin number. 0 for pin 2, 1 for pin 3 (those are the normal Arduino interupt pins)
@@ -47,17 +50,26 @@
 
 #define BREAK_PIN 12
 
+// This is the address the program will save to when it powers down
+#define EEPROM_ADDR 0
+
 // set initial variables
-int start; //var to track the time of start
+unsigned long loop_start = millis();
+int timeout = 30000;  //timeout for idle in milliseconds (30 seconds)
+unsigned long start; //var to track the time of start
 volatile int i; //counter var
-volatile int rnd = 0; // first round is 0
-volatile int count_down = 1500; // 25 minutes
+volatile byte rnd = EEPROM.read(EEPROM_ADDR); // first round is set from the last save.
+volatile int count_down = 1500; // 25 minutes in seconds
 
 void setup() {
   // Set pin modes for buttons
   pinMode(NEXT_BTN_PIN, INPUT_PULLUP);
   pinMode(START_BTN_PIN, INPUT_PULLUP);
   
+  // Set pin mode for mosfet pin
+  pinMode(ON_PIN, OUTPUT);
+  digitalWrite(ON_PIN, HIGH);
+
   // Set pin modes for all the LEDs
   pinMode(BIN_PIN0, OUTPUT);
   pinMode(BIN_PIN1, OUTPUT);
@@ -75,10 +87,20 @@ void setup() {
   pinMode(BREAK_PIN, OUTPUT);
 
   attachInterrupt(NEXT_BTN_PIN_INTERUPT, next_interupt, LOW);
+  
+  // set the initial round that was read out of EEPROM
+  digitalWrite(BREAK_PIN, rnd %2);
+  digitalWrite(ROUND_PIN0, rnd/2 %2);
+  digitalWrite(ROUND_PIN1, rnd/4 %2);
 }
 
 void loop() {
   // 
+  if ( millis() - loop_start > timeout ){
+    EEPROM.update(EEPROM_ADDR,rnd);
+    digitalWrite(ON_PIN, LOW);
+  }
+
   if ( ! digitalRead(START_BTN_PIN) ){
     start = millis();
     
@@ -104,6 +126,7 @@ void loop() {
 }
 
 void next () {
+  loop_start = millis();
   rnd++;
 
   if ( rnd%2 ){
